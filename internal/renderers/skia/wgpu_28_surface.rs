@@ -66,7 +66,11 @@ impl super::Surface for WGPUSurface {
             .copied()
             .unwrap_or_else(|| swapchain_capabilities.formats[0]);
         surface_config.format = swapchain_format;
-        surface_config.alpha_mode = wgpu::CompositeAlphaMode::PostMultiplied;
+        if swapchain_capabilities.alpha_modes.contains(wgpu::CompositeAlphaMode::PostMultiplied) {
+            surface_config.alpha_mode = wgpu::CompositeAlphaMode::PostMultiplied;
+        } else {
+            surface_config.alpha_mode = wgpu::CompositeAlphaMode::Auto;
+        }
         surface.configure(&device, &surface_config);
 
         let backend: Backend = adapter.get_info().backend.try_into()?;
