@@ -207,15 +207,6 @@ pub enum SurfaceTarget {
     WindowHandle(Box<dyn wgpu::DisplayAndWindowHandle + 'static>),
     /// DRM surface target for direct rendering on Linux KMS.
     Drm(wgpu::SurfaceTargetUnsafe),
-    /// A pre-built raw surface target, for cases where the caller has to
-    /// construct the presentation object itself.
-    ///
-    /// Used on Windows for DirectComposition: a plain HWND swapchain only ever
-    /// advertises `CompositeAlphaMode::Opaque`, so a window that wants per-pixel
-    /// alpha has to present through an `IDCompositionVisual` instead. The caller
-    /// owns that visual and is responsible for keeping it alive alongside the
-    /// surface.
-    Raw(wgpu::SurfaceTargetUnsafe),
 }
 
 impl From<Box<dyn wgpu::DisplayAndWindowHandle + 'static>> for SurfaceTarget {
@@ -251,11 +242,6 @@ pub fn init_instance_adapter_device_queue_surface(
             // remains valid for the lifetime of the returned surface, by storing the
             // DrmOutput in the renderer adapter.
             SurfaceTarget::Drm(surface_target_unsafe) => unsafe {
-                instance.create_surface_unsafe(surface_target_unsafe)
-            },
-            // Safety: the caller guarantees the underlying presentation object
-            // outlives the surface (see `SurfaceTarget::Raw`).
-            SurfaceTarget::Raw(surface_target_unsafe) => unsafe {
                 instance.create_surface_unsafe(surface_target_unsafe)
             },
         }

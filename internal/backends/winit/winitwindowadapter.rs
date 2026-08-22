@@ -663,17 +663,17 @@ impl WinitWindowAdapter {
 
         attrs = attrs.with_title("Slint Window".to_string());
 
-        // Windows composites a transparent window one of two ways: through the
-        // DWM redirection surface, or through DirectComposition. Only the latter
-        // gives a D3D swapchain per-pixel alpha -- a plain HWND swapchain reports
-        // just `CompositeAlphaMode::Opaque` -- so drop the redirection bitmap and
-        // let the renderer present into a composition visual instead. winit also
-        // skips its `DwmEnableBlurBehindWindow` call when this is set, which is
-        // correct: that call only concerns the redirection-surface route.
+        // Windows composites a transparent window either through the DWM
+        // redirection surface or through DirectComposition, and only the latter
+        // gives a D3D swapchain per-pixel alpha. Drop the redirection bitmap so
+        // the composition path is the one in effect; winit also skips its
+        // `DwmEnableBlurBehindWindow` call when this is set, which is correct --
+        // that call only concerns the redirection-surface route.
         //
-        // The Skia/wgpu surface creates the composition chain to match. A
-        // renderer that does *not* do so would show nothing at all, since there
-        // is no redirection surface left for DWM to present.
+        // This pairs with `Dx12SwapchainKind::DxgiFromVisual`, which makes wgpu
+        // build the composition visual. Without that the window has no
+        // redirection surface *and* nothing composing in its place, so it would
+        // render as fully see-through.
         #[cfg(target_os = "windows")]
         {
             use winit::platform::windows::WindowAttributesExtWindows;

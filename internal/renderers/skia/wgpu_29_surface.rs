@@ -17,8 +17,6 @@ use wgpu_29 as wgpu;
 use crate::SkiaSharedContext;
 
 #[cfg(target_family = "windows")]
-mod dcomp;
-#[cfg(target_family = "windows")]
 mod dx12;
 #[cfg(target_vendor = "apple")]
 mod metal;
@@ -36,12 +34,6 @@ pub struct WGPUSurface {
     surface: Option<wgpu::Surface<'static>>,
     textures_to_transition_for_sampling: RefCell<Vec<wgpu::Texture>>,
     pub(crate) backend: Backend,
-    /// The DirectComposition chain this surface presents into, on Windows.
-    /// Purely an ownership anchor -- the surface holds its own reference to the
-    /// visual, but the device and target have to outlive it or the composition
-    /// is torn down while it's still presenting.
-    #[cfg(target_family = "windows")]
-    _composition: Option<dcomp::Composition>,
 }
 
 impl WGPUSurface {
@@ -50,33 +42,6 @@ impl WGPUSurface {
         size: PhysicalWindowSize,
         requested_graphics_api: Option<RequestedGraphicsAPI>,
     ) -> Result<Self, PlatformError> {
-        let surface_target = surface_target.into();
-
-        // On Windows, present through a DirectComposition visual rather than
-        // straight onto the HWND. A plain HWND swapchain only advertises
-        // `CompositeAlphaMode::Opaque`, so translucent windows composite against
-        // black; a composition visual is the only route to per-pixel alpha here.
-        #[cfg(target_family = "windows")]
-        let (surface_target, composition) = match &surface_target {
-            i_slint_core::graphics::wgpu_29::SurfaceTarget::WindowHandle(window_handle) => {
-                match dcomp::create(window_handle.as_ref())? {
-                    Some(composition) => (
-                        i_slint_core::graphics::wgpu_29::SurfaceTarget::Raw(
-                            // Safety: `composition` is stored on the returned
-                            // WGPUSurface, so the visual outlives the surface.
-                            // wgpu takes its own reference on top of that.
-                            wgpu::SurfaceTargetUnsafe::CompositionVisual(
-                                windows_core::Interface::as_raw(&composition.visual),
-                            ),
-                        ),
-                        Some(composition),
-                    ),
-                    None => (surface_target, None),
-                }
-            }
-            _ => (surface_target, None),
-        };
-
         let (instance, adapter, device, queue, surface) =
             i_slint_core::graphics::wgpu_29::init_instance_adapter_device_queue_surface(
                 surface_target,
@@ -103,8 +68,8 @@ impl WGPUSurface {
             .unwrap_or_else(|| swapchain_capabilities.formats[0]);
         surface_config.format = swapchain_format;
         // `Opaque` discards the scene's alpha, and `Auto` resolves to it on a
-        // plain HWND swapchain. Prefer either translucent mode when offered:
-        // DirectComposition visuals lead with PreMultiplied, while Metal's
+        // plain HWND swapchain. Prefer either translucent mode when offered: a
+        // DirectComposition swapchain leads with PreMultiplied, while Metal's
         // CAMetalLayer only ever offers PostMultiplied, so both are needed.
         surface_config.alpha_mode = [
             wgpu::CompositeAlphaMode::PreMultiplied,
@@ -132,8 +97,6 @@ impl WGPUSurface {
             surface: Some(surface),
             textures_to_transition_for_sampling: RefCell::new(Vec::new()),
             backend,
-            #[cfg(target_family = "windows")]
-            _composition: composition,
         })
     }
 
@@ -153,8 +116,6 @@ impl WGPUSurface {
             surface: None,
             textures_to_transition_for_sampling: RefCell::new(Vec::new()),
             backend,
-            #[cfg(target_family = "windows")]
-            _composition: None,
         }
     }
 
