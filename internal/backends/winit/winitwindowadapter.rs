@@ -994,7 +994,20 @@ impl WinitWindowAdapter {
         // that we only update the internal maximized state when the window is
         // not minimized. Otherwise, the window would be restored in a
         // non-maximized state even if it was maximized before being minimized.
-        let maximized = winit_window.is_maximized();
+        //
+        // On macOS, winit answers is_maximized for an undecorated window by
+        // briefly giving it a title bar and resize border (isZoomed doesn't
+        // work without them) and then restoring its style mask. Changing the
+        // style mask ends AppKit's delivery of an ongoing mouse drag to the
+        // view, and this runs on every resize, so a frameless window that
+        // resizes itself from a drag loses the drag after the first step.
+        // The user can't zoom a window without a title bar, so keep the state
+        // we last set or saw.
+        let maximized = if cfg!(target_os = "macos") && !winit_window.is_decorated() {
+            self.maximized.get()
+        } else {
+            winit_window.is_maximized()
+        };
         if !self.window().is_minimized() {
             self.maximized.set(maximized);
             if maximized != self.window().is_maximized() {
