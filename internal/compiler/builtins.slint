@@ -1703,6 +1703,10 @@ export component TextInput {
     in property <bool> single-line: true;
     /// When set to `true`, text editing via keyboard and mouse is disabled but selecting text is still enabled as well as editing text programmatically.
     in property <bool> read-only: false;
+    /// What the Tab key types, such as four spaces for a code editor. Empty leaves Tab (and
+    /// always Shift+Tab) to move the focus. Typed as an ordinary edit, so undo covers it.
+    /// \default ""
+    in property <string> tab-text;
     // Internal, undocumented property, only exposed for IME.
     out property <string> preedit-text;
     //! ### font-metrics
