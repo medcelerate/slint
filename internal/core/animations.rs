@@ -251,8 +251,12 @@ impl AnimationDriver {
     /// the windowing system driver for every frame.
     pub fn update_animations(&self, new_tick: Instant) {
         let current_tick = self.global_instant.as_ref().get_untracked();
-        assert!(current_tick <= new_tick, "The platform's clock is not monotonic!");
-        if current_tick != new_tick {
+        // A clock that steps back (seen on macOS) used to fail an assert here,
+        // aborting the app. Keep the later tick instead: the tick animations
+        // measure against still never goes backwards, so their progress
+        // (`tick - start`) can't underflow; they just pause until the clock
+        // catches up.
+        if new_tick > current_tick {
             self.active_animations.set(false);
             self.global_instant.as_ref().set(new_tick);
         }
